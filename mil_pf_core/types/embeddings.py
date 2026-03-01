@@ -3,7 +3,7 @@ import torch
 
 
 @dataclass
-class EmbeddingsBatch:
+class Embeddings:
     embeddings: torch.Tensor  # (batch, embedding_dim)
 
     def __post_init__(self):

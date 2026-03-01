@@ -3,7 +3,7 @@ import torch
 
 
 @dataclass
-class ImagesBatch:
+class Images:
     images: torch.Tensor  # (batch, height, width)
 
     def __post_init__(self):
