@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mil-pf-core"
+version = "0.1.0"
+description = "Core interfaces, types, and pipeline for MIL PF models"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "torch",
+    "opencv-python",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mil_pf_core*"]
