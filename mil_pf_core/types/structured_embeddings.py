@@ -21,6 +21,12 @@ class StructuredEmbeddings:
             raise ValueError("instance_types must have shape (batch,).")
         if self.groups.ndim != 1:
             raise ValueError("groups must have shape (batch,).")
+        if torch.is_floating_point(self.instance_types):
+            raise ValueError("instance_types must be an integer tensor.")
+        if not torch.all(
+            (self.instance_types == 0) | (self.instance_types == 1)
+        ):
+            raise ValueError("instance_types must contain only 0 and 1 values.")
 
         batch_size = self.embeddings.embeddings.shape[0]
 
