@@ -6,8 +6,8 @@ MIL-PF is a mammography classification approach relying on foundational vision e
 
 ## Project context
 
-- This repository evolved from `mil-pf-research`.
-- This repository is consumed by `mil-pf-serve`.
+- This repository evolved from [`mil-pf-research`](https://github.com/nikolaJovisic/mil-pf-research).
+- This repository is consumed by [`mil-pf-serve`](https://github.com/nikolaJovisic/mil-pf-serve).
 - Heatmap behavior is still in migration from the research implementation to the production implementation.
 
 ## Installation
