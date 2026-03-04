@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from einops import rearrange, repeat
+from PIL import Image
 from transformers import AutoModel, AutoProcessor
 
 from mil_pf_core.embedder.implementations.medsiglip.config import MedSigLIPEmbedderConfig
@@ -35,12 +36,13 @@ class MedSigLIPEmbedder(EmbedderInterface):
         x = tensor.to(dtype=torch.float32).clamp(0.0, 1.0)
         x = repeat(x, "b h w -> b c h w", c=3)
         x_np = (rearrange(x, "b c h w -> b h w c").cpu().numpy() * 255.0).astype(np.uint8)
-        image_list = [img for img in x_np]
+        image_list = [Image.fromarray(img) for img in x_np]
         inputs = self.processor(images=image_list, return_tensors="pt").to(self.device)
 
         with torch.inference_mode():
-            pixel_values = inputs["pixel_values"]
-            vision_outputs = self.model.vision_model(pixel_values=pixel_values)
+            vision_outputs = self.model.vision_model(
+                **{k: v for k, v in inputs.items() if "pixel_values" in k}
+            )
             if hasattr(self.model, "visual_projection"):
                 outputs = self.model.visual_projection(vision_outputs.pooler_output)
             else:

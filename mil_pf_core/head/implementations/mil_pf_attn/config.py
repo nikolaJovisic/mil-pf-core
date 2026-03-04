@@ -5,7 +5,7 @@ from mil_pf_core.head.config import HeadConfig
 
 
 @dataclass
-class MILPFModelConfig:
+class MILPFAttnModelConfig:
     input_dim: int = 1536
     num_classes: int = 1
     gl_hidden_dim: int = 8
@@ -27,8 +27,8 @@ class MILPFModelConfig:
 
 
 @dataclass
-class MILPFHeadConfig(HeadConfig):
-    model: MILPFModelConfig = field(default_factory=MILPFModelConfig)
+class MILPFAttnHeadConfig(HeadConfig):
+    model: MILPFAttnModelConfig = field(default_factory=MILPFAttnModelConfig)
     head_path: str = ""
     strict_load: bool = False
     device: str = "cpu"

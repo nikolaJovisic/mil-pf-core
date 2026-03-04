@@ -4,13 +4,13 @@ from einops import rearrange
 from torch_scatter import scatter_add, scatter_max
 from torch_scatter.composite import scatter_softmax
 
-from mil_pf_core.head.implementations.milpf.config import MILPFModelConfig
+from mil_pf_core.head.implementations.mil_pf_attn.config import MILPFAttnModelConfig
 
 
-class MILPFTrexModel(nn.Module):
+class MILPFAttnTrexModel(nn.Module):
     """Trex architecture: max pooling on whole-image branch and attention on tile branch."""
 
-    def __init__(self, cfg: MILPFModelConfig):
+    def __init__(self, cfg: MILPFAttnModelConfig):
         super().__init__()
 
         self.global_proj_0 = nn.Sequential(

@@ -13,6 +13,7 @@ dependencies = [
     "torch",
     "torch-scatter",
     "opencv-python",
+    "pillow",
     "einops",
     "transformers",
 ]

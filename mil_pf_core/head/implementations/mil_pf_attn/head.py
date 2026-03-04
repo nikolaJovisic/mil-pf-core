@@ -1,18 +1,18 @@
 import numpy as np
 import torch
 
-from mil_pf_core.head.implementations.milpf.config import MILPFHeadConfig
-from mil_pf_core.head.implementations.milpf.model import MILPFTrexModel
+from mil_pf_core.head.implementations.mil_pf_attn.config import MILPFAttnHeadConfig
+from mil_pf_core.head.implementations.mil_pf_attn.model import MILPFAttnTrexModel
 from mil_pf_core.head.interface import HeadInterface
 from mil_pf_core.types.predictions import Predictions
 from mil_pf_core.types.structured_embeddings import StructuredEmbeddings
 
 
-class MILPFHead(HeadInterface):
-    def __init__(self, config: MILPFHeadConfig):
+class MILPFAttnHead(HeadInterface):
+    def __init__(self, config: MILPFAttnHeadConfig):
         self.config = config
         self.device = torch.device(config.device)
-        self.model = MILPFTrexModel(config.model).to(self.device).eval()
+        self.model = MILPFAttnTrexModel(config.model).to(self.device).eval()
 
         checkpoint = torch.load(config.head_path, map_location=self.device)
         if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
@@ -32,19 +32,12 @@ class MILPFHead(HeadInterface):
             logits = self.model(x, group, instance_type).squeeze(-1)
             probs = torch.sigmoid(logits)
 
-        # Model outputs group-level logits; map back to sample-level via group id.
+        # Keep model outputs at case/group level.
         if probs.ndim == 0:
             probs = probs.unsqueeze(0)
-        if probs.shape[0] == x.shape[0]:
-            sample_probs = probs
-        else:
-            sample_probs = probs[group]
-
-        suspicious = (
-            sample_probs > self.config.suspicious_threshold
-        ).cpu().numpy().astype(np.bool_)
+        suspicious = (probs > self.config.suspicious_threshold).cpu().numpy().astype(np.bool_)
         heatmap = np.zeros(
-            (x.shape[0], self.config.heatmap_shape[0], self.config.heatmap_shape[1]),
+            (probs.shape[0], self.config.heatmap_shape[0], self.config.heatmap_shape[1]),
             dtype=np.float32,
         )
         return Predictions(suspicious=suspicious, heatmap=heatmap)
