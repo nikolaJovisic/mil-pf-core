@@ -159,3 +159,138 @@ def pad_images_to_max_shape(images: Sequence[np.ndarray]) -> List[np.ndarray]:
         out[:h, :w] = img
         padded.append(out)
     return padded
+
+
+def tile_single(
+    image: np.ndarray,
+    tile_size: Tuple[int, int] = (518, 518),
+    overlap: float = 0.25,
+    threshold: float = 0.05,
+    tile_increase_tolerance: float = 0.1,
+) -> List[np.ndarray]:
+    h, w = image.shape
+    base_tile_h, base_tile_w = tile_size
+
+    mask = get_breast_mask(image)
+    ys, xs = np.where(mask)
+    if len(ys) == 0:
+        return []
+
+    y_min, y_max = int(ys.min()), int(ys.max())
+    x_min, x_max = int(xs.min()), int(xs.max())
+    region_h = y_max - y_min + 1
+    region_w = x_max - x_min + 1
+
+    best_tile_h = base_tile_h
+    best_tile_w = base_tile_w
+
+    for scale_h in np.linspace(1.0, 1.0 + tile_increase_tolerance, 10):
+        tile_h = int(base_tile_h * scale_h)
+        num_tiles_h = max(
+            1,
+            int(np.ceil((region_h - tile_h * overlap) / (tile_h * (1 - overlap)))),
+        )
+        stride_h = (region_h - tile_h) / max(1, num_tiles_h - 1) if num_tiles_h > 1 else 0
+        if int(np.floor(stride_h)) >= 0:
+            best_tile_h = tile_h
+
+    for scale_w in np.linspace(1.0, 1.0 + tile_increase_tolerance, 10):
+        tile_w = int(base_tile_w * scale_w)
+        num_tiles_w = max(
+            1,
+            int(np.ceil((region_w - tile_w * overlap) / (tile_w * (1 - overlap)))),
+        )
+        stride_w = (region_w - tile_w) / max(1, num_tiles_w - 1) if num_tiles_w > 1 else 0
+        if int(np.floor(stride_w)) >= 0:
+            best_tile_w = tile_w
+
+    tile_h = best_tile_h
+    tile_w = best_tile_w
+
+    num_tiles_h = max(
+        1, int(np.ceil((region_h - tile_h * overlap) / (tile_h * (1 - overlap))))
+    )
+    num_tiles_w = max(
+        1, int(np.ceil((region_w - tile_w * overlap) / (tile_w * (1 - overlap))))
+    )
+
+    stride_h = (region_h - tile_h) / max(1, num_tiles_h - 1) if num_tiles_h > 1 else 0
+    stride_w = (region_w - tile_w) / max(1, num_tiles_w - 1) if num_tiles_w > 1 else 0
+    stride_h = int(np.floor(stride_h))
+    stride_w = int(np.floor(stride_w))
+
+    y_start = max(0, y_min)
+    x_start = max(0, x_min)
+    max_value = float(np.max(image)) if image.size else 0.0
+
+    tiles: List[np.ndarray] = []
+    for i in range(num_tiles_h):
+        y = y_start + i * stride_h
+        if y + tile_h > h:
+            y = h - tile_h
+        for j in range(num_tiles_w):
+            x = x_start + j * stride_w
+            if x + tile_w > w:
+                x = w - tile_w
+            tile_img = image[y : y + tile_h, x : x + tile_w]
+            if max_value <= 0 or tile_img.mean() > threshold * max_value:
+                tiles.append(tile_img)
+
+    return tiles
+
+
+def tile_multiple(
+    images: Sequence[np.ndarray],
+    tile_size: Tuple[int, int] = (518, 518),
+    overlap: float = 0.25,
+    threshold: float = 0.05,
+    tile_increase_tolerance: float = 0.1,
+) -> List[np.ndarray]:
+    tiles: List[np.ndarray] = []
+    for image in images:
+        tiles.extend(
+            tile_single(
+                image=image,
+                tile_size=tile_size,
+                overlap=overlap,
+                threshold=threshold,
+                tile_increase_tolerance=tile_increase_tolerance,
+            )
+        )
+    return tiles
+
+
+def center_crop_or_pad(image: np.ndarray, target_shape: Tuple[int, int]) -> np.ndarray:
+    target_h, target_w = target_shape
+    out = np.zeros((target_h, target_w), dtype=image.dtype)
+
+    h, w = image.shape
+    src_y0 = max(0, (h - target_h) // 2)
+    src_x0 = max(0, (w - target_w) // 2)
+    src_y1 = min(h, src_y0 + target_h)
+    src_x1 = min(w, src_x0 + target_w)
+
+    cropped = image[src_y0:src_y1, src_x0:src_x1]
+    ch, cw = cropped.shape
+
+    dst_y0 = max(0, (target_h - ch) // 2)
+    dst_x0 = max(0, (target_w - cw) // 2)
+    out[dst_y0 : dst_y0 + ch, dst_x0 : dst_x0 + cw] = cropped
+    return out
+
+
+def preprocess_single(
+    image: np.ndarray,
+    aspect_ratio: float,
+    shape: Tuple[int, int],
+    breast_mask_dilation_factor: int,
+) -> np.ndarray:
+    img = np.asarray(image)
+    img = negate_if_should(img)
+    img = flip_if_should(img)
+    img, _ = keep_only_breast(img, dilation_factor=breast_mask_dilation_factor)
+    img = otsu_cut(img)
+    img = pad_to_aspect_ratio(img, aspect_ratio)
+    img = resize_img(img, shape)
+    img = normalize_image(img, scale_to_unit_interval=True)
+    return img
